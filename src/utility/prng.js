@@ -31,8 +31,8 @@ export default function Alea() {
       var s2 = 0;
       var c = 1;
   
-      if (args.length == 0) {
-        args = [+new Date];
+      if (args.length === 0) {
+        args = [+new Date()];
       }
       var mash = Mash();
       s0 = mash(' ');
