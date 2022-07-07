@@ -12,7 +12,8 @@ export default class VoronoiPainter {
     points = null;
     voronoi = null;
     rectNoise = null;
-    rectGradient = [];
+    continentGradient = [];
+    singleContinent = true;
 
     constructor(props) {
         this._props = props;
@@ -41,17 +42,9 @@ export default class VoronoiPainter {
 
         this.voronoi = d3.Delaunay.from(this.points).voronoi([0.5, 0.5, width - 0.5, height - 0.5]);
         const noise2D = makeNoise2D(this._props.seed);
-        this.rectNoise = makeRectangle(width, height, noise2D, { frequency: 0.0055, octaves: 3, persistence: 0.8, amplitude: 1 });
+        this.rectNoise = makeRectangle(width, height, noise2D, { frequency: 0.008, octaves: 3, persistence: 0.8, amplitude: 1 });
 
-        for (let x = 0; x < width; x++) {
-            this.rectGradient.push([]);
-            for (let y = 0; y < height; y++) {
-                var xValue = Math.abs(x * 2.0 - width) / width;
-                var yValue = Math.abs(y * 2.0 - height) / height;
-                var value = Math.max(xValue, yValue);
-                this.rectGradient[x].push(value);
-            }
-        }
+        this._findContinents()
     }
 
     draw() {
@@ -62,17 +55,61 @@ export default class VoronoiPainter {
         this._drawVoronoi();
     }
 
-    relax(numRelax = 1) {
+    relax(numRelax = 1, voronoi = this.voronoi) {
         for (let r = 0; r < numRelax; r++) {
-            for (let i = 0; i < this._props.numPoints; i++) {
-                const cell = this.voronoi.cellPolygon(i);
+            for (let i = 0; i < this.voronoi.delaunay.points.length / 2; i++) {
+                const cell = voronoi.cellPolygon(i);
                 const [x1, y1] = d3.polygonCentroid(cell);
     
-                this.voronoi.delaunay.points[i * 2] = x1;
-                this.voronoi.delaunay.points[i * 2 + 1] = y1;
+                voronoi.delaunay.points[i * 2] = x1;
+                voronoi.delaunay.points[i * 2 + 1] = y1;
             }
     
-            this.voronoi.update();
+            voronoi.update();
+        }
+    }
+
+    _findContinents() {
+        const { width, height, random, numContinents } = this._props;
+
+        if (this.singleContinent) {
+            const yValues = [];
+            for (let x = 0; x < width; x++) {
+                const xValue = Math.abs(x * 2.0 - width) / width;
+                this.continentGradient.push([]);
+                for (let y = 0; y < height; y++) {
+                    if (yValues.length < y) {
+                        yValues.push(Math.abs(y * 2.0 - height) / height);
+                    }
+                    const yValue = yValues[y];
+                    const value = Math.max(xValue, yValue);
+                    this.continentGradient[x].push(value);
+                }
+            }
+        } else {
+            let continentPositions = Array.from({length: numContinents}, () => [random() * width, random() * height]);
+            const continentSize = width / (1 + Math.log(numContinents));
+            const continentVoronoi = d3.Delaunay.from(continentPositions).voronoi([0.5, 0.5, width - 0.5, height - 0.5]);
+            this.relax(5, continentVoronoi);
+            continentPositions = [];
+            for (let i = 0; i < continentVoronoi.delaunay.points.length / 2; i++) {
+                continentPositions.push([continentVoronoi.delaunay.points[i * 2 + 0], continentVoronoi.delaunay.points[i * 2 + 1]]);
+            }
+    
+            for (let x = 0; x < width; x++) {
+                // var xValue = Math.abs(x * 2.0 - width) / width;
+                this.continentGradient.push([]);
+                for (let y = 0; y < height; y++) {
+                    // yValues.push(Math.abs(y * 2.0 - height) / height);
+                    const dist = continentPositions.reduce((prev, curr) => {
+                        const thisDist = Math.sqrt(Math.pow(x - curr[0], 2) + Math.pow(y - curr[1], 2)) / continentSize;
+                        return Math.min(thisDist, prev);
+                    }, 1);
+                    // const dist = Math.sqrt(Math.pow(x - continentPositions[0][0], 2) + Math.pow(y - continentPositions[0][1], 2)) / continentSize;
+                    // var value = Math.min(xValue, yValue);
+                    this.continentGradient[x].push(dist);
+                }
+            }
         }
     }
 
@@ -114,9 +151,9 @@ export default class VoronoiPainter {
             context.beginPath();
             voronoi.renderCell(i, context);
             let noise = this.rectNoise[Math.round(x)][Math.round(y)] * 0.5 + 0.5;
-            noise = noise - this.rectGradient[Math.round(x)][Math.round(y)];
+            noise = noise - this.continentGradient[Math.round(x)][Math.round(y)];
             let fillColor = '#000';
-            if (noise < cutoff) {
+            if (noise <= cutoff) {
                 fillColor = '#363377';
             } else if (noise < cutoff + 0.4) {
                 fillColor = '#2D6E12';
@@ -124,6 +161,10 @@ export default class VoronoiPainter {
                 fillColor = '#554100';
             } else {
                 fillColor = '#fff';
+            }
+            if (false) {
+                noise = this.continentGradient[Math.round(x)][Math.round(y)] * 255;
+                fillColor = `rgb(${noise},${noise},${noise})`
             }
             context.fillStyle = fillColor;
             context.fill();

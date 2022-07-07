@@ -9,11 +9,12 @@ class D3Tester extends React.Component {
     super(props);
     this.state = {
       margin: 50,
-      seed: 1000,
+      seed: 1002,
       numVoronoi: 8000,
       vPaint: null,
       initRelax: 3,
       cutoff: 0,
+      numContinents: 1,
     }
     
     this.handleChange = this.handleChange.bind(this);
@@ -41,6 +42,7 @@ class D3Tester extends React.Component {
       numPoints: n,
       cutoff: this.state.cutoff,
       seed: this.state.seed,
+      numContinents: this.state.numContinents,
     };
   }
 
@@ -114,6 +116,18 @@ class D3Tester extends React.Component {
               name='cutoff'
               min={0}
               max={100}
+              valueLabelDisplay="auto"
+            />
+            <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-12px'}} gutterBottom>
+              # continents
+            </Typography>
+            <Slider
+              value={this.state.numContinents}
+              onChange={this.handleChange}
+              name='numContinents'
+              min={1}
+              max={10}
+              marks={true}
               valueLabelDisplay="auto"
             />
           </div>
