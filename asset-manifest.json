@@ -1,15 +1,15 @@
 {
   "files": {
     "main.css": "/the-winding-road/static/css/main.bca2956b.css",
-    "main.js": "/the-winding-road/static/js/main.abd9cd27.js",
+    "main.js": "/the-winding-road/static/js/main.753bce17.js",
     "static/js/787.03c6b921.chunk.js": "/the-winding-road/static/js/787.03c6b921.chunk.js",
     "index.html": "/the-winding-road/index.html",
     "main.bca2956b.css.map": "/the-winding-road/static/css/main.bca2956b.css.map",
-    "main.abd9cd27.js.map": "/the-winding-road/static/js/main.abd9cd27.js.map",
+    "main.753bce17.js.map": "/the-winding-road/static/js/main.753bce17.js.map",
     "787.03c6b921.chunk.js.map": "/the-winding-road/static/js/787.03c6b921.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.bca2956b.css",
-    "static/js/main.abd9cd27.js"
+    "static/js/main.753bce17.js"
   ]
 }
