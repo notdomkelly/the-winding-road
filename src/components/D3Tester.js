@@ -10,15 +10,16 @@ class D3Tester extends React.Component {
     this.state = {
       margin: 50,
       seed: 1002,
-      numVoronoi: 8000,
+      diskSpacing: 10, //8000,
       vPaint: null,
-      initRelax: 3,
+      initRelax: 1,
       cutoff: 0,
       numContinents: 1,
     }
     
     this.handleChange = this.handleChange.bind(this);
     this.onRelax = this.onRelax.bind(this);
+    this.onRandomSeed = this.onRandomSeed.bind(this);
   }
 
   initVoronoi() {
@@ -33,13 +34,13 @@ class D3Tester extends React.Component {
   _getVoronoiProps() {
     const { innerWidth: width, innerHeight: height } = window;
     const rightPanelWidth = 200;
-    const margin = this.state.margin * 2, n = this.state.numVoronoi;
+    const margin = this.state.margin * 2;
 
     return {
       height: height - margin,
       width: width - margin - rightPanelWidth,
       random: Alea(this.state.seed),
-      numPoints: n,
+      diskSpacing: this.state.diskSpacing,
       cutoff: this.state.cutoff,
       seed: this.state.seed,
       numContinents: this.state.numContinents,
@@ -60,6 +61,10 @@ class D3Tester extends React.Component {
   onRelax(){
     this.state.vPaint.relax();
     this.state.vPaint.draw();
+  }
+
+  onRandomSeed(){
+    this.setState({seed: Math.floor(Math.random() * 1000000 - 500000)}, () => { this.initVoronoi(); });
   }
 
   render() {
@@ -87,7 +92,8 @@ class D3Tester extends React.Component {
               paddingLeft: '12px',
             }}
           >
-            <Button variant='outlined' onClick={this.onRelax}>Relax</Button>
+            {/* <Button variant='outlined' onClick={this.onRelax}>Relax</Button> */}
+            <Button variant='outlined' onClick={this.onRandomSeed}>Random Seed</Button>
             <TextField 
               value={this.state.seed}
               onChange={this.handleChange}
@@ -97,17 +103,17 @@ class D3Tester extends React.Component {
               style={{marginTop: '12px'}} 
             />
             <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-12px'}} gutterBottom>
-              # points
+              point spacing
             </Typography>
             <Slider
-              value={this.state.numVoronoi}
+              value={this.state.diskSpacing}
               onChange={this.handleChange}
-              name='numVoronoi'
-              min={10}
-              max={45999}
+              name='diskSpacing'
+              min={2}
+              max={20}
               valueLabelDisplay="auto"
             />
-            <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-12px'}} gutterBottom>
+            {/* <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-12px'}} gutterBottom>
               cutoff
             </Typography>
             <Slider
@@ -117,8 +123,8 @@ class D3Tester extends React.Component {
               min={0}
               max={100}
               valueLabelDisplay="auto"
-            />
-            <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-12px'}} gutterBottom>
+            /> */}
+            {/* <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-12px'}} gutterBottom>
               # continents
             </Typography>
             <Slider
@@ -129,7 +135,7 @@ class D3Tester extends React.Component {
               max={10}
               marks={true}
               valueLabelDisplay="auto"
-            />
+            /> */}
           </div>
         </Paper>
       </div>

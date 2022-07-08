@@ -1,9 +1,7 @@
 import * as d3 from "d3";
 import { makeRectangle } from 'fractal-noise';
 import { makeNoise2D } from "open-simplex-noise";
-
-// const tau = 2 * Math.PI;
-
+import PoissonDiskSampling from "poisson-disk-sampling";
 
 export default class VoronoiPainter {
     _props = {}
@@ -13,7 +11,6 @@ export default class VoronoiPainter {
     voronoi = null;
     rectNoise = null;
     continentGradient = [];
-    singleContinent = true;
 
     constructor(props) {
         this._props = props;
@@ -26,7 +23,7 @@ export default class VoronoiPainter {
     }
 
     initialize() {
-        const { width, height, random, numPoints } = this._props;
+        const { width, height, random, diskSpacing } = this._props;
 
         this.canvas = d3
             .select('#container')
@@ -38,21 +35,25 @@ export default class VoronoiPainter {
             .attr('height', height);
         
         this.context = this.canvas.node().getContext('2d');
-        this.points = Array.from({length: numPoints}, () => [random() * width, random() * height]);
+        var pds = new PoissonDiskSampling({
+            shape: [width, height],
+            minDistance: diskSpacing,
+        }, random);
+        this.points = pds.fill();
 
         this.voronoi = d3.Delaunay.from(this.points).voronoi([0.5, 0.5, width - 0.5, height - 0.5]);
         const noise2D = makeNoise2D(this._props.seed);
-        this.rectNoise = makeRectangle(width, height, noise2D, { frequency: 0.008, octaves: 3, persistence: 0.8, amplitude: 1 });
+        this.rectNoise = makeRectangle(width, height, noise2D, { frequency: 0.009, octaves: 3, persistence: 0.5, amplitude: 1 });
 
-        this._findContinents()
+        this._findContinents();
     }
 
     draw() {
         const { width, height } = this._props;
 
         this.context.clearRect(0, 0, width, height);
-        // this._drawDelaunay();
         this._drawVoronoi();
+        // this._drawDelaunay();
     }
 
     relax(numRelax = 1, voronoi = this.voronoi) {
@@ -70,45 +71,19 @@ export default class VoronoiPainter {
     }
 
     _findContinents() {
-        const { width, height, random, numContinents } = this._props;
+        const { width, height } = this._props;
 
-        if (this.singleContinent) {
-            const yValues = [];
-            for (let x = 0; x < width; x++) {
-                const xValue = Math.abs(x * 2.0 - width) / width;
-                this.continentGradient.push([]);
-                for (let y = 0; y < height; y++) {
-                    if (yValues.length < y) {
-                        yValues.push(Math.abs(y * 2.0 - height) / height);
-                    }
-                    const yValue = yValues[y];
-                    const value = Math.max(xValue, yValue);
-                    this.continentGradient[x].push(value);
+        const yValues = [];
+        for (let x = 0; x < width; x++) {
+            const xValue = Math.abs(x * 2.0 - width) / width;
+            this.continentGradient.push([]);
+            for (let y = 0; y < height; y++) {
+                if (yValues.length < y) {
+                    yValues.push(Math.abs(y * 2.0 - height) / height);
                 }
-            }
-        } else {
-            let continentPositions = Array.from({length: numContinents}, () => [random() * width, random() * height]);
-            const continentSize = width / (1 + Math.log(numContinents));
-            const continentVoronoi = d3.Delaunay.from(continentPositions).voronoi([0.5, 0.5, width - 0.5, height - 0.5]);
-            this.relax(5, continentVoronoi);
-            continentPositions = [];
-            for (let i = 0; i < continentVoronoi.delaunay.points.length / 2; i++) {
-                continentPositions.push([continentVoronoi.delaunay.points[i * 2 + 0], continentVoronoi.delaunay.points[i * 2 + 1]]);
-            }
-    
-            for (let x = 0; x < width; x++) {
-                // var xValue = Math.abs(x * 2.0 - width) / width;
-                this.continentGradient.push([]);
-                for (let y = 0; y < height; y++) {
-                    // yValues.push(Math.abs(y * 2.0 - height) / height);
-                    const dist = continentPositions.reduce((prev, curr) => {
-                        const thisDist = Math.sqrt(Math.pow(x - curr[0], 2) + Math.pow(y - curr[1], 2)) / continentSize;
-                        return Math.min(thisDist, prev);
-                    }, 1);
-                    // const dist = Math.sqrt(Math.pow(x - continentPositions[0][0], 2) + Math.pow(y - continentPositions[0][1], 2)) / continentSize;
-                    // var value = Math.min(xValue, yValue);
-                    this.continentGradient[x].push(dist);
-                }
+                const yValue = yValues[y];
+                const value = Math.max(xValue, yValue);
+                this.continentGradient[x].push(value);
             }
         }
     }
@@ -127,53 +102,149 @@ export default class VoronoiPainter {
     }
 
     _drawVoronoi() {
-        const context = this.context, voronoi = this.voronoi;
+        const context = this.context, voronoi = this.voronoi, cutoff = this._props.cutoff / 100.0;
 
-        // const cellGen = voronoi.cellPolygons();
-        // context.beginPath();
-        // while (true) {
-        //     const cell = cellGen.next();
-        //     if (cell.done) {
-        //         break;
-        //     }
-        //     cell.value.forEach(corner => {
-        //         context.moveTo(corner[0] + 2, corner[1]);
-        //         context.arc(corner[0], corner[1], 2, 0, tau);
-        //     });
-        // }
-        // context.fill();
-
-        const cutoff = this._props.cutoff / 100.0;
-        for (let i = 0; i < this._props.numPoints; i++) {
-            const x = voronoi.delaunay.points[i * 2 + 0];
-            const y = voronoi.delaunay.points[i * 2 + 1];
-
-            context.beginPath();
-            voronoi.renderCell(i, context);
-            let noise = this.rectNoise[Math.round(x)][Math.round(y)] * 0.5 + 0.5;
-            noise = noise - this.continentGradient[Math.round(x)][Math.round(y)];
-            let fillColor = '#000';
-            if (noise <= cutoff) {
-                fillColor = '#363377';
-            } else if (noise < cutoff + 0.4) {
-                fillColor = '#2D6E12';
-            } else if (noise < cutoff + 0.55) {
-                fillColor = '#554100';
-            } else {
-                fillColor = '#fff';
-            }
-            if (false) {
-                noise = this.continentGradient[Math.round(x)][Math.round(y)] * 255;
-                fillColor = `rgb(${noise},${noise},${noise})`
-            }
-            context.fillStyle = fillColor;
-            context.fill();
+        // draw water
+        for (let i = 0; i < this.voronoi.delaunay.points.length / 2; i++) {
+            this._drawCell(i, true);
         }
 
+        this._drawWaves();
+
+        // water opacity pass on waves
+        for (let i = 0; i < this.voronoi.delaunay.points.length / 2; i++) {
+            this._drawCell(i, true, true);
+        }
+
+        for (let i = 0; i < this.voronoi.delaunay.points.length / 2; i++) {
+            this._drawCell(i, false);
+        }
+
+        // need to draw coast on top
+        context.lineWidth = 2;
+        context.lineJoin = 'round';
+        context.strokeStyle = '#5d4122';
         context.beginPath();
-        voronoi.render(context);
-        voronoi.renderBounds(context);
-        context.strokeStyle = "#000000";
+        for (let i = 0; i < this.voronoi.delaunay.points.length / 2; i++) {
+            this._drawCoastBorders(i, cutoff);
+        }
         context.stroke();
+
+        context.beginPath();
+        context.lineWidth = 4;
+        context.strokeStyle = "#5d4122";
+        voronoi.renderBounds(context);
+        context.stroke();
+    }
+
+
+    _drawCell(idx, drawOcean = false, postWavePass = false) {
+        const context = this.context, voronoi = this.voronoi, cutoff = this._props.cutoff / 100.0;
+        let noise = this._getNoiseForCell(idx);
+
+        const pert = noise * 30;
+        let r, g, b;
+        if (drawOcean) {
+            r = 191;
+            g = 196;
+            b = 176;
+        } else if(noise > cutoff) {
+            r = 192;
+            g = 149;
+            b = 100;
+        } else {
+            return;
+        }
+        let alpha = 1;
+        if (postWavePass) {
+            const x = this.voronoi.delaunay.points[idx * 2 + 0];
+            const y = this.voronoi.delaunay.points[idx * 2 + 1];
+            if (noise < -0.14) {
+                alpha = 1;
+            } else if (noise < -0.075) {
+                alpha = 0.5 + this.continentGradient[Math.round(x)][Math.round(y)] / 2;
+            } else {
+                alpha = 0 + this.continentGradient[Math.round(x)][Math.round(y)] / 2;
+            }
+        }
+        const fillColor = `rgba(${r + pert}, ${g + pert}, ${b + pert}, ${alpha})`;
+        context.fillStyle = fillColor;
+        context.strokeStyle = fillColor;
+        context.beginPath();
+        voronoi.renderCell(idx, context);
+        context.stroke();
+        context.fill();
+    }
+
+    _getNoiseForCell(idx) {
+        const x = this.voronoi.delaunay.points[idx * 2 + 0];
+        const y = this.voronoi.delaunay.points[idx * 2 + 1];
+        
+        let noise = this.rectNoise[Math.round(x)][Math.round(y)] * 0.5 + 0.5;
+        noise = noise - this.continentGradient[Math.round(x)][Math.round(y)];
+
+        return noise;
+    }
+
+    _drawCoastBorders(idx, cutoff) {
+        const voronoi = this.voronoi;
+        const myNoise = this._getNoiseForCell(idx);
+
+        const e0 = voronoi.delaunay.inedges[idx];
+        let e = e0;
+        do {
+            const t0 = Math.floor(e / 3);
+            e = e % 3 === 2 ? e - 2 : e + 1;
+            if (voronoi.delaunay.triangles[e] !== idx) break; // bad triangulation
+            e = voronoi.delaunay.halfedges[e];
+            if (e === -1) break;
+            const t1 = Math.floor(e / 3);
+
+            const neighborCell = voronoi.delaunay.triangles[e];
+            if (neighborCell > idx) {
+                continue;
+            }
+
+            const neighborNoise = this._getNoiseForCell(neighborCell);
+
+            const shoreLine = ((neighborNoise <= cutoff && myNoise > cutoff) || (myNoise <= cutoff && neighborNoise > cutoff));
+            if (shoreLine) {
+                this._drawSingleBorder(t0, t1);
+            }
+        } while (e !== e0 && e !== -1);
+    }
+
+    _drawSingleBorder(t0, t1) {
+        const context = this.context, voronoi = this.voronoi;
+
+        const t0x = voronoi.circumcenters[t0 * 2 + 0];
+        const t0y = voronoi.circumcenters[t0 * 2 + 1];
+
+        const t1x = voronoi.circumcenters[t1 * 2 + 0];
+        const t1y = voronoi.circumcenters[t1 * 2 + 1];
+        
+        context.moveTo(t0x, t0y);
+        context.lineTo(t1x, t1y);
+    }
+
+    _drawWaves() {
+        for (let i = 0; i < this._props.height; i += Math.floor(this._props.height / 100)) {
+            this._drawWaveLine(i);
+        }
+    }
+
+    _drawWaveLine(baseHeight) {
+        const context = this.context;
+
+        context.beginPath();
+        context.lineWidth = 0.5;
+        context.strokeStyle = '#000';
+        context.moveTo(-1, baseHeight);
+        for (let i = 0; i < this._props.width; i++) {
+            const noise = this.rectNoise[i][Math.round(baseHeight)]
+            context.lineTo(i + noise * 10, Math.sin(i) + baseHeight + noise * 2);
+        }
+        context.stroke();
+
     }
 }
