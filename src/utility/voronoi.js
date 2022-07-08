@@ -2,7 +2,18 @@ import * as d3 from "d3";
 import { makeRectangle } from 'fractal-noise';
 import { makeNoise2D } from "open-simplex-noise";
 import PoissonDiskSampling from "poisson-disk-sampling";
-import { generateHill, generateMountain, renderHill, renderMountain } from '../utility/poiGenerator';
+import { HillGenerator, MountainGenerator } from '../utility/poiGenerator';
+
+const generators = {
+    'hill': HillGenerator(),
+    'mountain': MountainGenerator(),
+};
+
+const probByType = { 'hill': 0.85, 'mountain': 0.7 };
+const poiSize = {
+    'hill': n => 20 * n,
+    'mountain': n => 30 * n * n,
+};
 
 export default class VoronoiPainter {
     _props = {}
@@ -14,6 +25,7 @@ export default class VoronoiPainter {
     continentGradient = [];
     basicNoise = {x: null, y: null};
     pois = {};
+    elevationNoise = [];
 
     constructor(props) {
         this._props = props;
@@ -50,12 +62,13 @@ export default class VoronoiPainter {
 
         this.voronoi = d3.Delaunay.from(this.points).voronoi([0.5, 0.5, width - 0.5, height - 0.5]);
         const noise2D = makeNoise2D(this._props.seed);
-        this.rectNoise = makeRectangle(width, height, noise2D, { frequency: 0.009, octaves: 3, persistence: 0.5, amplitude: 1 });
+        this.rectNoise = makeRectangle(width, height, noise2D, { frequency: 0.009, octaves: 3, persistence: 0.7, amplitude: 1 });
         
         this.basicNoise.x = makeRectangle(width, height, noise2D);
         this.basicNoise.y = makeRectangle(width, height, makeNoise2D(this._props.seed * random() * 10000000 - 5000000));
 
         this._findContinents();
+        this._presetCellNoise();
     }
 
     draw() {
@@ -88,13 +101,25 @@ export default class VoronoiPainter {
             const xValue = Math.abs(x * 2.0 - width) / width;
             this.continentGradient.push([]);
             for (let y = 0; y < height; y++) {
-                if (yValues.length < y) {
+                if (yValues.length <= y) {
                     yValues.push(Math.abs(y * 2.0 - height) / height);
                 }
                 const yValue = yValues[y];
                 const value = Math.max(xValue, yValue);
                 this.continentGradient[x].push(value);
             }
+        }
+    }
+
+    _presetCellNoise() {
+        this.elevationNoise = [];
+        for (let i = 0; i < this.voronoi.delaunay.points.length / 2; i++) {
+            const x = this.voronoi.delaunay.points[i * 2 + 0];
+            const y = this.voronoi.delaunay.points[i * 2 + 1];
+            
+            let noise = this.rectNoise[Math.floor(x)][Math.floor(y)] * 0.5 + 0.5;
+            noise = noise - this.continentGradient[Math.floor(x)][Math.floor(y)];
+            this.elevationNoise.push(noise);
         }
     }
 
@@ -161,7 +186,7 @@ export default class VoronoiPainter {
 
     _drawCell(idx, drawOcean = false, postWavePass = false) {
         const context = this.context, voronoi = this.voronoi, cutoff = this._props.cutoff / 100.0;
-        let noise = this._getNoiseForCell(idx);
+        let noise = this.elevationNoise[idx];
 
         const pert = noise * 30;
         let r, g, b;
@@ -183,9 +208,9 @@ export default class VoronoiPainter {
             if (noise < -0.14) {
                 alpha = 1;
             } else if (noise < -0.075) {
-                alpha = 0.5 + this.continentGradient[Math.round(x)][Math.round(y)] / 2;
+                alpha = 0.5 + this.continentGradient[Math.floor(x)][Math.floor(y)] / 2;
             } else {
-                alpha = 0 + this.continentGradient[Math.round(x)][Math.round(y)] / 2;
+                alpha = 0 + this.continentGradient[Math.floor(x)][Math.floor(y)] / 2;
             }
         }
         const fillColor = `rgba(${r + pert}, ${g + pert}, ${b + pert}, ${alpha})`;
@@ -196,35 +221,20 @@ export default class VoronoiPainter {
         context.stroke();
         context.fill();
 
-        if (noise < cutoff + 0.30) return;
         const poiType = (noise > cutoff + 0.45) ? 'mountain' : 'hill';
+
+        const shouldDraw = this._props.random() > probByType[poiType] && noise >= cutoff + 0.30;
+        if (!shouldDraw) return;
+
         const x = this.voronoi.delaunay.points[idx * 2 + 0];
         const y = this.voronoi.delaunay.points[idx * 2 + 1];
-        let poi = null;
-        let shouldDraw = false;
-        if (poiType === 'hill') {
-            shouldDraw = this._props.random() > 0.85;
-            if (shouldDraw) poi = generateHill(x, y, 20 * noise, this.basicNoise.x, this.basicNoise.y);
-        } else if (poiType === 'mountain') {
-            shouldDraw = this._props.random() > 0.5;
-            if (shouldDraw) poi = generateMountain(x, y, 20 * noise, this.basicNoise.x, this.basicNoise.y);
-        }
-        if (shouldDraw) this.pois[poiType].push([idx, poi]);
-    }
-
-    _getNoiseForCell(idx) {
-        const x = this.voronoi.delaunay.points[idx * 2 + 0];
-        const y = this.voronoi.delaunay.points[idx * 2 + 1];
-        
-        let noise = this.rectNoise[Math.round(x)][Math.round(y)] * 0.5 + 0.5;
-        noise = noise - this.continentGradient[Math.round(x)][Math.round(y)];
-
-        return noise;
+        const poi = generators[poiType].generate({ x, y }, poiSize[poiType](noise), this.basicNoise);
+        this.pois[poiType].push([idx, poi]);
     }
 
     _drawCoastBorders(idx, cutoff) {
         const voronoi = this.voronoi;
-        const myNoise = this._getNoiseForCell(idx);
+        const myNoise = this.elevationNoise[idx];
 
         const e0 = voronoi.delaunay.inedges[idx];
         let e = e0;
@@ -241,7 +251,7 @@ export default class VoronoiPainter {
                 continue;
             }
 
-            const neighborNoise = this._getNoiseForCell(neighborCell);
+            const neighborNoise = this.elevationNoise[neighborCell];
 
             const shoreLine = ((neighborNoise <= cutoff && myNoise > cutoff) || (myNoise <= cutoff && neighborNoise > cutoff));
             if (shoreLine) {
@@ -277,7 +287,7 @@ export default class VoronoiPainter {
         context.strokeStyle = '#5d4122';
         context.moveTo(-1, baseHeight);
         for (let i = 0; i < this._props.width; i++) {
-            const noise = this.rectNoise[i][Math.round(baseHeight)]
+            const noise = this.rectNoise[i][Math.floor(baseHeight)]
             context.lineTo(i + noise * 10, Math.sin(i) + baseHeight + noise * 2);
         }
         context.stroke();
@@ -292,7 +302,7 @@ export default class VoronoiPainter {
 
     _drawPoi(idx, poiType, poiData) {
         const context = this.context;
-        const noise = this._getNoiseForCell(idx);
+        const noise = this.elevationNoise[idx];
 
         context.beginPath();
         context.strokeStyle = '#5d4122';
@@ -300,12 +310,7 @@ export default class VoronoiPainter {
         const noiseOff = noise * 60 - 15;
         context.fillStyle = `rgb(${r + noiseOff},${g + noiseOff},${b + noiseOff})`;
         context.lineWidth = 1;
-        if (poiType === 'hill') {
-            renderHill(poiData, context);
-
-        } else if (poiType === 'mountain') {
-            renderMountain(poiData, context);
-        }
+        generators[poiType].render(poiData, context);
         context.fill();
         context.stroke();
     }

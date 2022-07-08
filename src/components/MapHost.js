@@ -1,6 +1,6 @@
 import React from "react";
 import Alea from "../utility/prng";
-import { Button, Paper, TextField } from "@mui/material";
+import { Button, Paper, TextField, Typography, Switch } from "@mui/material";
 import VoronoiPainter from "../utility/voronoi";
 
 
@@ -136,6 +136,14 @@ class MapHost extends React.Component {
               marks={true}
               valueLabelDisplay="auto"
             /> */}
+            <div 
+                style={{alignSelf: 'center', marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center'}} 
+            >
+                <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-12px'}} gutterBottom>
+                    rendering sandbox
+                </Typography>
+                <Switch onChange={this.props.onSwitchScene} />
+            </div>  
           </div>
         </Paper>
       </div>

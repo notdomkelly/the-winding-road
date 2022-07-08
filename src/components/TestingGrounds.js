@@ -1,10 +1,15 @@
 import React from 'react';
-import { Button, Paper, TextField } from "@mui/material";
+import { Button, MenuItem, Paper, Select, Switch, TextField, Typography } from "@mui/material";
 import * as d3 from 'd3';
 import { makeRectangle } from 'fractal-noise';
 import { makeNoise2D } from "open-simplex-noise";
 import Alea from "../utility/prng";
-import { generateMountain, renderMountain } from '../utility/poiGenerator';
+import { HillGenerator, MountainGenerator } from '../utility/poiGenerator';
+
+const generators = {
+    'hill': HillGenerator(),
+    'mountain': MountainGenerator(),
+}
 
 class TestingGrounds extends React.Component {
     constructor(props) {
@@ -12,13 +17,20 @@ class TestingGrounds extends React.Component {
         this.state = {
           margin: 50,
           seed: 1,
+          type: 'hill',
         }
         
         this.onRandomSeed = this.onRandomSeed.bind(this);
+        this.handleChange = this.handleChange.bind(this);
     }
 
     onRandomSeed(){
       this.setState({seed: Math.floor(Math.random() * 1000000 - 500000)}, () => { this.draw() });
+    }
+
+    handleChange(event) {
+      const {name, value} = event.target;
+      this.setState({[name]: value}, () => { this.draw() });
     }
 
     draw() {
@@ -28,10 +40,10 @@ class TestingGrounds extends React.Component {
         width = width - margin - 200;
 
         const canvas = d3
-            .select('#container')
+            .select('#test-container')
             .select('canvas').node()
-            ? d3.select('#container').select('canvas')
-            : d3.select('#container').append('canvas');
+            ? d3.select('#test-container').select('canvas')
+            : d3.select('#test-container').append('canvas');
         canvas
             .attr('width', width)
             .attr('height', height);
@@ -52,9 +64,9 @@ class TestingGrounds extends React.Component {
                 context.stroke();
 
                 const x = i + width / 12, y = j + height / 12;
-                const mtn = generateMountain(x, y, 10 * (rng() + 1) * 2, noiseX2D, noiseY2D);
+                const obj = generators[this.state.type].generate({ x, y }, 10 * (rng() + 1) * 2, { x: noiseX2D, y: noiseY2D });
                 context.beginPath();
-                renderMountain(mtn, context);
+                generators[this.state.type].render(obj, context);
                 context.strokeStyle = '#000';
                 context.stroke();
             }
@@ -84,7 +96,7 @@ class TestingGrounds extends React.Component {
                 }}
                 elevation={3}
               >
-                <div id="container" style={{ width: '100%'}}></div>
+                <div id="test-container" style={{ width: '100%'}}></div>
                 <div 
                   style={{
                     display: 'flex',
@@ -93,15 +105,35 @@ class TestingGrounds extends React.Component {
                     width: '200px',
                   }}
                 >
-                  <Button variant='outlined' onClick={this.onRandomSeed}>Random Seed</Button>
-                  <TextField 
-                    value={this.state.seed}
-                    onChange={this.handleChange}
-                    name='seed'
-                    label="Seed" 
-                    type='number' 
-                    style={{marginTop: '12px'}} 
-                  />
+                    <Button variant='outlined' onClick={this.onRandomSeed}>Random Seed</Button>
+                    <TextField 
+                        value={this.state.seed}
+                        onChange={this.handleChange}
+                        name='seed'
+                        label="Seed" 
+                        type='number' 
+                        style={{marginTop: '12px'}} 
+                    />
+                    <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-8px'}} gutterBottom>
+                        point of interest
+                    </Typography>
+                    <Select
+                        value={this.state.type}
+                        label="point of interest"
+                        name="type"
+                        onChange={this.handleChange}
+                    >
+                        <MenuItem value={'hill'}>Hill</MenuItem>
+                        <MenuItem value={'mountain'}>Mountain</MenuItem>
+                    </Select>
+                    <div 
+                        style={{alignSelf: 'center', marginTop: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center'}} 
+                    >
+                        <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-12px'}} gutterBottom>
+                            rendering sandbox
+                        </Typography>
+                        <Switch onChange={this.props.onSwitchScene} defaultChecked />
+                    </div>  
                 </div>
               </Paper>
             </div>
