@@ -2,7 +2,7 @@ import * as d3 from "d3";
 import { makeRectangle } from 'fractal-noise';
 import { makeNoise2D } from "open-simplex-noise";
 import PoissonDiskSampling from "poisson-disk-sampling";
-import { generateHill, renderHill } from '../utility/poiGenerator';
+import { generateHill, generateMountain, renderHill, renderMountain } from '../utility/poiGenerator';
 
 export default class VoronoiPainter {
     _props = {}
@@ -13,9 +13,14 @@ export default class VoronoiPainter {
     rectNoise = null;
     continentGradient = [];
     basicNoise = {x: null, y: null};
+    pois = {};
 
     constructor(props) {
         this._props = props;
+        this.pois = {
+            hill: [],
+            mountain: [],
+        }
         this.initialize();
     }
 
@@ -126,11 +131,6 @@ export default class VoronoiPainter {
             this._drawCell(i, false);
         }
 
-        // draw hills
-        for (let i = 0; i < this.voronoi.delaunay.points.length / 2; i++) {
-            this._drawHill(i);
-        }
-
         // need to draw coast on top
         context.lineWidth = 2;
         context.lineJoin = 'round';
@@ -146,6 +146,16 @@ export default class VoronoiPainter {
         context.strokeStyle = "#5d4122";
         voronoi.renderBounds(context);
         context.stroke();
+
+        this._reorderPois('mountain');
+
+        ['hill', 'mountain'].forEach(poiType => {
+            this.pois[poiType].forEach(poiInfo => {
+                const idx = poiInfo[0];
+                const poiData = poiInfo[1];
+                this._drawPoi(idx, poiType, poiData);
+            });
+        });
     }
 
 
@@ -185,6 +195,21 @@ export default class VoronoiPainter {
         voronoi.renderCell(idx, context);
         context.stroke();
         context.fill();
+
+        if (noise < cutoff + 0.30) return;
+        const poiType = (noise > cutoff + 0.45) ? 'mountain' : 'hill';
+        const x = this.voronoi.delaunay.points[idx * 2 + 0];
+        const y = this.voronoi.delaunay.points[idx * 2 + 1];
+        let poi = null;
+        let shouldDraw = false;
+        if (poiType === 'hill') {
+            shouldDraw = this._props.random() > 0.85;
+            if (shouldDraw) poi = generateHill(x, y, 20 * noise, this.basicNoise.x, this.basicNoise.y);
+        } else if (poiType === 'mountain') {
+            shouldDraw = this._props.random() > 0.5;
+            if (shouldDraw) poi = generateMountain(x, y, 20 * noise, this.basicNoise.x, this.basicNoise.y);
+        }
+        if (shouldDraw) this.pois[poiType].push([idx, poi]);
     }
 
     _getNoiseForCell(idx) {
@@ -259,22 +284,29 @@ export default class VoronoiPainter {
 
     }
 
-    _drawHill(idx) {
-        const context = this.context, voronoi = this.voronoi, cutoff = this._props.cutoff / 100.0;
-        let noise = this._getNoiseForCell(idx);
+    _reorderPois(poiType) {
+        if (poiType === 'mountain') {
+            this.pois[poiType].sort((a, b) => a[1].m_base.y - b[1].m_base.y)
+        }
+    }
 
-        if (noise < cutoff + 0.35 || noise > cutoff + 0.6) return;
+    _drawPoi(idx, poiType, poiData) {
+        const context = this.context;
+        const noise = this._getNoiseForCell(idx);
 
-        const shouldDraw = this._props.random() > 0.7;
-        if (!shouldDraw) return;
-
-        
-        const x = voronoi.delaunay.points[idx * 2 + 0];
-        const y = voronoi.delaunay.points[idx * 2 + 1];
-        const hill = generateHill(x, y, 20 * noise, this.basicNoise.x, this.basicNoise.y);
         context.beginPath();
-        renderHill(hill, context);
         context.strokeStyle = '#5d4122';
+        let r = 192, g = 149, b = 100;
+        const noiseOff = noise * 60 - 15;
+        context.fillStyle = `rgb(${r + noiseOff},${g + noiseOff},${b + noiseOff})`;
+        context.lineWidth = 1;
+        if (poiType === 'hill') {
+            renderHill(poiData, context);
+
+        } else if (poiType === 'mountain') {
+            renderMountain(poiData, context);
+        }
+        context.fill();
         context.stroke();
     }
 }

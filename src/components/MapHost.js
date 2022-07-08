@@ -1,6 +1,6 @@
 import React from "react";
 import Alea from "../utility/prng";
-import { Button, Paper, Slider, TextField, Typography } from "@mui/material";
+import { Button, Paper, TextField } from "@mui/material";
 import VoronoiPainter from "../utility/voronoi";
 
 
@@ -102,7 +102,7 @@ class MapHost extends React.Component {
               type='number' 
               style={{marginTop: '12px'}} 
             />
-            <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-12px'}} gutterBottom>
+            {/* <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-12px'}} gutterBottom>
               point spacing
             </Typography>
             <Slider
@@ -112,7 +112,7 @@ class MapHost extends React.Component {
               min={2}
               max={20}
               valueLabelDisplay="auto"
-            />
+            /> */}
             {/* <Typography variant='overline' style={{marginTop: '12px', marginBottom: '-12px'}} gutterBottom>
               cutoff
             </Typography>

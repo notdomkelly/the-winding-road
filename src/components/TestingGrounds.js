@@ -41,8 +41,8 @@ class TestingGrounds extends React.Component {
         const noiseX2D = makeRectangle(width, height, makeNoise2D(this.state.seed));
         const noiseY2D = makeRectangle(width, height, makeNoise2D(this.state.seed * rng() * 10000000 - 5000000));
 
-        for (let i = 0; i < width; i += width / 6) {
-            for (let j = 0; j < height; j += height / 6) {
+        for (let i = 0; i < width; i += Math.ceil(width / 6)) {
+            for (let j = 0; j < height; j += Math.ceil(height / 6)) {
                 context.beginPath();
                 context.moveTo(i, j);
                 context.lineTo(i + width / 6, j);
@@ -52,7 +52,7 @@ class TestingGrounds extends React.Component {
                 context.stroke();
 
                 const x = i + width / 12, y = j + height / 12;
-                const mtn = generateMountain(x, y, 20, noiseX2D, noiseY2D);
+                const mtn = generateMountain(x, y, 10 * (rng() + 1) * 2, noiseX2D, noiseY2D);
                 context.beginPath();
                 renderMountain(mtn, context);
                 context.strokeStyle = '#000';
