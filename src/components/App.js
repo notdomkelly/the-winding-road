@@ -1,10 +1,12 @@
 import './App.css';
-import D3Tester from './D3Tester.js';
+import MapHost from './MapHost.js';
+// import TestingGrounds from './TestingGrounds.js';
 
 function App() {
   return (
     <div>
-      <D3Tester />
+      <MapHost />
+      {/* <TestingGrounds /> */}
     </div>
   );
 }

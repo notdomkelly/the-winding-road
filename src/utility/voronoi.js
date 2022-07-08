@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import { makeRectangle } from 'fractal-noise';
 import { makeNoise2D } from "open-simplex-noise";
 import PoissonDiskSampling from "poisson-disk-sampling";
+import { generateHill, renderHill } from '../utility/poiGenerator';
 
 export default class VoronoiPainter {
     _props = {}
@@ -11,6 +12,7 @@ export default class VoronoiPainter {
     voronoi = null;
     rectNoise = null;
     continentGradient = [];
+    basicNoise = {x: null, y: null};
 
     constructor(props) {
         this._props = props;
@@ -44,6 +46,9 @@ export default class VoronoiPainter {
         this.voronoi = d3.Delaunay.from(this.points).voronoi([0.5, 0.5, width - 0.5, height - 0.5]);
         const noise2D = makeNoise2D(this._props.seed);
         this.rectNoise = makeRectangle(width, height, noise2D, { frequency: 0.009, octaves: 3, persistence: 0.5, amplitude: 1 });
+        
+        this.basicNoise.x = makeRectangle(width, height, noise2D);
+        this.basicNoise.y = makeRectangle(width, height, makeNoise2D(this._props.seed * random() * 10000000 - 5000000));
 
         this._findContinents();
     }
@@ -116,8 +121,14 @@ export default class VoronoiPainter {
             this._drawCell(i, true, true);
         }
 
+        // draw land
         for (let i = 0; i < this.voronoi.delaunay.points.length / 2; i++) {
             this._drawCell(i, false);
+        }
+
+        // draw hills
+        for (let i = 0; i < this.voronoi.delaunay.points.length / 2; i++) {
+            this._drawHill(i);
         }
 
         // need to draw coast on top
@@ -238,7 +249,7 @@ export default class VoronoiPainter {
 
         context.beginPath();
         context.lineWidth = 0.5;
-        context.strokeStyle = '#000';
+        context.strokeStyle = '#5d4122';
         context.moveTo(-1, baseHeight);
         for (let i = 0; i < this._props.width; i++) {
             const noise = this.rectNoise[i][Math.round(baseHeight)]
@@ -246,5 +257,24 @@ export default class VoronoiPainter {
         }
         context.stroke();
 
+    }
+
+    _drawHill(idx) {
+        const context = this.context, voronoi = this.voronoi, cutoff = this._props.cutoff / 100.0;
+        let noise = this._getNoiseForCell(idx);
+
+        if (noise < cutoff + 0.35 || noise > cutoff + 0.6) return;
+
+        const shouldDraw = this._props.random() > 0.7;
+        if (!shouldDraw) return;
+
+        
+        const x = voronoi.delaunay.points[idx * 2 + 0];
+        const y = voronoi.delaunay.points[idx * 2 + 1];
+        const hill = generateHill(x, y, 20 * noise, this.basicNoise.x, this.basicNoise.y);
+        context.beginPath();
+        renderHill(hill, context);
+        context.strokeStyle = '#5d4122';
+        context.stroke();
     }
 }

@@ -4,12 +4,12 @@ import { Button, Paper, Slider, TextField, Typography } from "@mui/material";
 import VoronoiPainter from "../utility/voronoi";
 
 
-class D3Tester extends React.Component {
+class MapHost extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
       margin: 50,
-      seed: 1002,
+      seed: 1,
       diskSpacing: 10, //8000,
       vPaint: null,
       initRelax: 1,
@@ -143,4 +143,4 @@ class D3Tester extends React.Component {
   }
 }
 
-export default D3Tester;
+export default MapHost;
