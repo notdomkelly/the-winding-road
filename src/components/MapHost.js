@@ -1,7 +1,7 @@
 import React from "react";
 import Alea from "../utility/prng";
-import { Button, Paper, TextField, Typography, Switch } from "@mui/material";
-import VoronoiPainter from "../utility/voronoi";
+import { Button, Paper, TextField, Typography, Switch, Select, MenuItem } from "@mui/material";
+import MapController from "../utility/mapController";
 
 
 class MapHost extends React.Component {
@@ -10,8 +10,8 @@ class MapHost extends React.Component {
     this.state = {
       margin: 50,
       seed: 1,
-      diskSpacing: 10, //8000,
-      vPaint: null,
+      diskSpacing: 6, //8000,
+      map: null,
       initRelax: 1,
       cutoff: 0,
       numContinents: 1,
@@ -22,16 +22,15 @@ class MapHost extends React.Component {
     this.onRandomSeed = this.onRandomSeed.bind(this);
   }
 
-  initVoronoi() {
-    const props = this._getVoronoiProps();
-    const vPaint = new VoronoiPainter(props);
-    this.setState({vPaint}, () => {
-      this.state.vPaint.relax(this.state.initRelax);
-      this.state.vPaint.draw();
+  initMap() {
+    const props = this._getMapProps();
+    const map = new MapController(props);
+    this.setState({map}, () => {
+      this.state.map.draw();
     });
   }
 
-  _getVoronoiProps() {
+  _getMapProps() {
     const { innerWidth: width, innerHeight: height } = window;
     const rightPanelWidth = 200;
     const margin = this.state.margin * 2;
@@ -48,23 +47,25 @@ class MapHost extends React.Component {
   }
 
   componentDidMount() {
-    this.initVoronoi();
+    if (!this.state.map) {
+      this.initMap();
+    }
   }
 
   handleChange(event) {
     const {name, value} = event.target;
     this.setState({[name]: value}, () => {
-      this.initVoronoi();
+      this.initMap();
     })
   }
 
   onRelax(){
-    this.state.vPaint.relax();
-    this.state.vPaint.draw();
+    this.state.map.relax();
+    this.state.map.draw();
   }
 
   onRandomSeed(){
-    this.setState({seed: Math.floor(Math.random() * 1000000 - 500000)}, () => { this.initVoronoi(); });
+    this.setState({seed: Math.floor(Math.random() * 1000000 - 500000)}, () => { this.initMap(); });
   }
 
   render() {

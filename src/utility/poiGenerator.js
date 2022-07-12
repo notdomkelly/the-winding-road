@@ -1,3 +1,5 @@
+const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
+
 export function HillGenerator() {
     return {
         generate(pos, size, noise) {
@@ -10,6 +12,7 @@ export function HillGenerator() {
                 e: {x: x + width, y: y},
                 cp1: {x: x, y: y - width},
                 cp2: {x: x, y: y},
+                m_base: {x: null, y: null},
             };
             ['s', 'e'].forEach(key => {
                 const {x: _x, y: _y} = base[key];
@@ -21,6 +24,8 @@ export function HillGenerator() {
                 base[key].x = _x + noiseX2D[Math.floor(_x)][Math.floor(_y)] * width / 10 * 4;
                 base[key].y = _y + noiseY2D[Math.floor(_x)][Math.floor(_y)] * width / 10;
             });
+            base.m_base.x = (base.s.x + base.e.x) / 2;
+            base.m_base.y = (base.s.y + base.e.y) / 2;
             return base;
         },
 
@@ -54,13 +59,17 @@ export function MountainGenerator() {
             };
             ['s', 'e'].forEach(key => {
                 const {x: _x, y: _y} = base[key];
-                update[key].x = _x + noiseX2D[Math.floor(_x)][Math.floor(_y)] * width / 10 * 4;
-                update[key].y = _y + noiseY2D[Math.floor(_x)][Math.floor(_y)] * width / 10;
+                const nX = clamp(Math.floor(_x), 0, noiseX2D.length - 1);
+                const nY = clamp(Math.floor(_y), 0, noiseX2D[nX].length - 1);
+                update[key].x = _x + noiseX2D[nX][nY] * width / 10 * 4;
+                update[key].y = _y + noiseY2D[nX][nY] * width / 10;
             });
             ['p'].forEach(key => {
                 const {x: _x, y: _y} = base[key];
-                update[key].x = _x + noiseX2D[Math.floor(_x)][Math.floor(_y)] * width / 10 * 4;
-                update[key].y = _y + noiseY2D[Math.floor(_x)][Math.floor(_y)] * width / 10 * 4;
+                const nX = clamp(Math.floor(_x), 0, noiseX2D.length - 1);
+                const nY = clamp(Math.floor(_y), 0, noiseX2D[nX].length - 1);
+                update[key].x = _x + noiseX2D[nX][nY] * width / 10 * 4;
+                update[key].y = _y + noiseY2D[nX][nY] * width / 10 * 4;
             });
             update.m_base.x = update.s.x + (update.e.x - update.s.x) * 2 / 3;
             update.m_base.y = update.s.y + (update.e.y - update.s.y) / 2;
@@ -70,7 +79,9 @@ export function MountainGenerator() {
                 for (let i = 0; i < subdivisions + 1; i++) {
                     const t = i / subdivisions;
                     const curPoint = {x: start.x + dirVec.x * t, y: start.y + dirVec.y * t};
-                    curPoint.y = curPoint.y + noiseY2D[Math.floor(curPoint.x)][Math.floor(curPoint.y)] * pertSize - (pertSize * 2 / 3);
+                    const nX = clamp(Math.floor(curPoint.x), 0, noiseX2D.length - 1);
+                    const nY = clamp(Math.floor(curPoint.y), 0, noiseX2D[nX].length - 1);
+                    curPoint.y = curPoint.y + noiseY2D[nX][nY] * pertSize - (pertSize * 2 / 3);
                     arr.push(curPoint);
                 }
             }
