@@ -1,6 +1,6 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "The Wandering Road",
+  "name": "The Wandering Road - a procedural map generator",
   "icons": [
     {
       "src": "favicon.ico",
