@@ -1,6 +1,6 @@
 import React from "react";
 import Alea from "../utility/prng";
-import { Button, Paper, TextField, Typography, Switch, Select, MenuItem } from "@mui/material";
+import { Button, Paper, TextField, Typography, Switch } from "@mui/material";
 import MapController from "../utility/mapController";
 
 

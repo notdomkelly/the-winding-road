@@ -20,6 +20,7 @@ class MapController {
         const { width, height, random, diskSpacing, seed } = this._props;
 
 
+        console.log(seed);
         // Generate Voronoi points
         this.voronoi = generateVoronoi(width, height, diskSpacing, random);
 
@@ -27,7 +28,7 @@ class MapController {
         this.noise = this.setupNoise(seed, random, width, height, this.voronoi);
 
         const { triangleTypes, coastList } = findCoasts(this.voronoi, this.noise);
-        const { ranges, rangeConstraints } = findMountainRanges(this.voronoi, this.noise, random);
+        const { ranges, rangeConstraints, hillRanges, hillRangeConstraints } = findMountainRanges(this.voronoi, this.noise, random);
 
         const riverTree = findRivers(this.voronoi, this.noise, width, height, random);
         sizeRiver(riverTree);
@@ -38,6 +39,8 @@ class MapController {
             triangleTypes,
             mountainRanges: ranges,
             rangeConstraints,
+            hillRanges,
+            hillRangeConstraints,
         };
         this.painter = new Painter(width, height, this.voronoi, random, this.noise, features);
     }

@@ -8,7 +8,7 @@ const generators = {
     'mountain': MountainGenerator(),
 };
 const poiSize = {
-    'hill': n => 20 * n,
+    'hill': n => 20 * Math.abs(n),
     'mountain': n => 20 * n,
 };
 
@@ -51,6 +51,7 @@ class Painter {
         // this._drawDelaunay();
         this._drawCoast();
         this._drawMountainRanges();
+        this._drawHillRanges();
         // this._drawRivers();
 
         this._reorderPois('hill');
@@ -313,6 +314,42 @@ class Painter {
 
             const cellsInRange = range.map(c => c.cell);
             const poiType = 'mountain';
+
+            for (let j = 0; j < points.length; j++) {
+                const p = points[j];
+                const x = p[0] + constraint.min.x, y = p[1] + constraint.min.y
+                const cell = this.voronoi.delaunay.find(x, y);
+                if (!cellsInRange.includes(cell)) continue;
+
+                const cellElevation = range.find(c => c.cell === cell).elevation
+                
+                const poi = generators[poiType].generate({ x, y }, poiSize[poiType](cellElevation), this.noise.basic);
+
+                
+                const s_cell = this.voronoi.delaunay.find(poi.s.x, poi.s.y); 
+                const e_cell = this.voronoi.delaunay.find(poi.e.x, poi.e.y);
+                if (this.noise.elevation[s_cell] <= 0 || this.noise.elevation[e_cell] <= 0) continue;
+
+                this.pois[poiType].push([cell, poi]);
+            }
+        }
+    }
+
+    _drawHillRanges() {
+        for (let i = 0; i < this.features.hillRanges.length; i++) {
+            const constraint = this.features.hillRangeConstraints[i];
+            const width = constraint.max.x - constraint.min.x;
+            const height = constraint.max.y - constraint.min.y;
+            var pds = new PoissonDiskSampling({
+                shape: [width, height],
+                minDistance: 20,
+            }, this.random);
+            const points = pds.fill();
+
+            const range = this.features.hillRanges[i];
+
+            const cellsInRange = range.map(c => c.cell);
+            const poiType = 'hill';
 
             for (let j = 0; j < points.length; j++) {
                 const p = points[j];

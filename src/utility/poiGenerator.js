@@ -16,13 +16,17 @@ export function HillGenerator() {
             };
             ['s', 'e'].forEach(key => {
                 const {x: _x, y: _y} = base[key];
-                base[key].x = _x + noiseX2D[Math.floor(_x)][Math.floor(_y)] * width / 10 * 4;
-                base[key].y = _y + noiseY2D[Math.floor(_x)][Math.floor(_y)] * width / 10;
+                const nX = clamp(Math.floor(_x), 0, noiseX2D.length - 1);
+                const nY = clamp(Math.floor(_y), 0, noiseX2D[nX].length - 1);
+                base[key].x = _x + noiseX2D[nX][nY] * width / 10 * 4;
+                base[key].y = _y + noiseY2D[nX][nY] * width / 10;
             });
             ['cp1', 'cp2'].forEach(key => {
                 const {x: _x, y: _y} = base[key];
-                base[key].x = _x + noiseX2D[Math.floor(_x)][Math.floor(_y)] * width / 10 * 4;
-                base[key].y = _y + noiseY2D[Math.floor(_x)][Math.floor(_y)] * width / 10;
+                const nX = clamp(Math.floor(_x), 0, noiseX2D.length - 1);
+                const nY = clamp(Math.floor(_y), 0, noiseX2D[nX].length - 1);
+                base[key].x = _x + noiseX2D[nX][nY] * width / 10 * 4;
+                base[key].y = _y + noiseY2D[nX][nY] * width / 10;
             });
             base.m_base.x = (base.s.x + base.e.x) / 2;
             base.m_base.y = (base.s.y + base.e.y) / 2;

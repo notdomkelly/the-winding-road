@@ -1,6 +1,7 @@
 import { getNeighborTriangles } from "./voronoi";
 
 const MOUNTAIN_RANGE_CUTOFF = 0.8;
+const HILL_RANGE_CUTOFF = [0.4, 0.5];
 export const TriangleType = {
     LAND: 0,
     WATER: 1,
@@ -228,12 +229,15 @@ export function findMountainRanges(voronoi, noise, random) {
     const rangeConstraints = [];
     const ranges = [];
     const cellNodes = [];
+    const hillRanges = [];
+    const hillRangeConstraints = [];
+
     for (let i = 0; i < voronoi.delaunay.points.length / 2; i++) {
         const node = { range: null, cell: i, elevation: noise.mountainNoise[i], land: noise.elevation[i] > 0 };
         cellNodes.push(node);
     }
 
-    const addToRangeRecur = (node, rangeIdx) => {
+    const addToMountainRangeRecur = (node, rangeIdx) => {
         node.range = rangeIdx;
         ranges[rangeIdx].push(node);
 
@@ -254,7 +258,7 @@ export function findMountainRanges(voronoi, noise, random) {
             if (!cellNodes[n].land) continue;
             if (cellNodes[n].elevation < MOUNTAIN_RANGE_CUTOFF && random() < 0.8) continue;
 
-            addToRangeRecur(cellNodes[n], rangeIdx);
+            addToMountainRangeRecur(cellNodes[n], rangeIdx);
         }
     }
 
@@ -265,12 +269,51 @@ export function findMountainRanges(voronoi, noise, random) {
 
         ranges.push([]);
         rangeConstraints.push({ min: { x: 9999999, y: 9999999 }, max: { x: 0, y: 0}});
-        addToRangeRecur(cellNodes[i], ranges.length - 1);
+        addToMountainRangeRecur(cellNodes[i], ranges.length - 1);
 
         if (ranges[ranges.length - 1].length < 100)  ranges.pop();
     }
+
+    const addToHillRangeRecur = (node, rangeIdx) => {
+        node.range = rangeIdx;
+        hillRanges[rangeIdx].push(node);
+
+        const x = voronoi.delaunay.points[node.cell * 2], y = voronoi.delaunay.points[node.cell * 2 + 1];
+        if (x < hillRangeConstraints[rangeIdx].min.x) hillRangeConstraints[rangeIdx].min.x = x
+        if (x > hillRangeConstraints[rangeIdx].max.x) hillRangeConstraints[rangeIdx].max.x = x
+        if (y < hillRangeConstraints[rangeIdx].min.y) hillRangeConstraints[rangeIdx].min.y = y
+        if (y > hillRangeConstraints[rangeIdx].max.y) hillRangeConstraints[rangeIdx].max.y = y
+
+        const nGen = voronoi.neighbors(node.cell);
+        let neighbor = nGen.next();
+        while (!neighbor.done) {
+            const n = neighbor.value;
+            neighbor = nGen.next();
+
+            if (n === -1) continue;
+            if (cellNodes[n].range !== null) continue;
+            if (!cellNodes[n].land) continue;
+            if ((cellNodes[n].elevation < HILL_RANGE_CUTOFF[0] || cellNodes[n].elevation > HILL_RANGE_CUTOFF[1]) && random() < 0.8) continue;
+
+            addToHillRangeRecur(cellNodes[n], rangeIdx);
+        }
+    }
+
+    for (let i = 0; i < voronoi.delaunay.points.length / 2; i++) {
+        if (noise.elevation[i] < 0) continue;
+        if (noise.mountainNoise[i] < HILL_RANGE_CUTOFF[0] || noise.mountainNoise[i] > HILL_RANGE_CUTOFF[1]) continue;
+        if (cellNodes[i].range !== null) continue;
+
+        hillRanges.push([]);
+        hillRangeConstraints.push({ min: { x: 9999999, y: 9999999 }, max: { x: 0, y: 0}});
+        addToHillRangeRecur(cellNodes[i], hillRanges.length - 1);
+
+        // if (hillRanges[hillRanges.length - 1].length < 100)  hillRanges.pop();
+    }
     return {
         ranges,
-        rangeConstraints
+        rangeConstraints,
+        hillRanges,
+        hillRangeConstraints,
     };
 }
